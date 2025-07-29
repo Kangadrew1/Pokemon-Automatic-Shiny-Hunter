@@ -1,0 +1,45 @@
+# POkemon Name + Stats to LCD1602 Arduino Mega
+# Safe code. Use with Arduino Sketch pokemon_name2stats_safeFR.ino
+
+import serial, time, requests
+
+PORT = '/dev/cu.usbmodem14401'    # ← Update to your actual port connected to computer
+BAUD = 9600
+
+def open_serial():
+    ser = serial.Serial(PORT, BAUD, timeout=2)
+    time.sleep(2)  # let the Arduino Mega reset
+    print(f"Opened {PORT} at {BAUD} baud")
+    return ser
+
+def get_pokemon_data(name):
+    url = f"https://pokeapi.co/api/v2/pokemon/{name.lower()}"
+    r = requests.get(url)
+    if r.status_code == 200:
+        data = r.json()
+        poke_name = data['name'].capitalize()
+        # join *all* types with a slash
+        poke_types = "/".join([t['type']['name'].capitalize() for t in data['types']])
+        print("Pokemon name is: " + poke_name + " And type is: " + poke_types)
+        return poke_name, poke_types
+    else:
+        return None, None
+
+def main():
+    ser = open_serial()
+    while True:
+        user = input("Enter Pokémon name: ").strip()
+        name, types = get_pokemon_data(user)
+        if name:
+             # Truncate to 10 chars max
+            name = name[:10]
+            types = types[:10]
+            msg = f"{name}|{types}\n"
+        else:
+            msg = "PKMNNotFound|N/A\n"
+        # debug-print exactly what we send:
+        print("→ Sending (to LCD):", repr(msg))
+        ser.write(msg.encode())
+
+if __name__ == "__main__":
+    main()

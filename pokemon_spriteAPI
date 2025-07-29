@@ -1,0 +1,42 @@
+# Script for PokeAPI to fetch sprite.
+# Created 07-08-2025
+
+import serial, requests
+from PIL import Image
+from io import BytesIO
+
+# Configure
+SERIAL_PORT = '/dev/cu.usbmodem14401'        # adjust to your port (in my case send to Arduino to send to LCD); COM3 default
+                                             # usually macOS/Linux: /dev/ttyUSB0 or /dev/ttyACM0.
+BAUD = 9600
+API = 'https://pokeapi.co/api/v2/pokemon/{}/'
+
+def fetch_and_send(name):
+    # 1. Fetch sprite URL
+    r = requests.get(API.format(name.lower())).json()
+    url = r['sprites']['front_default']
+    # 2. Download and convert
+    img = Image.open(BytesIO(requests.get(url).content)).convert('L')
+    img = img.resize((10,16), Image.NEAREST).point(lambda x: 0 if x<128 else 1)
+    # 3. Build four 5×8 tiles
+    tiles = []
+    for ty in (0,8):
+        for tx in (0,5):
+            tile = []
+            for y in range(ty, ty+8):
+                row = 0
+                for x in range(tx, tx+5):
+                    row = (row<<1) | img.getpixel((x,y))
+                tile.append(row)
+            tiles.extend(tile)
+    # 4. Send bytes
+    with serial.Serial(SERIAL_PORT, BAUD, timeout=1) as ser:
+        ser.write(bytes(tiles))
+
+# QUICK TEST COMMENT OUT WHEN NOT USING
+with serial.Serial(SERIAL_PORT, BAUD, timeout=1) as ser:
+    ser.write(b"Hello LCD\n")
+
+if __name__ == '__main__':
+    name = input("Pokémon name: ")
+    fetch_and_send(name)

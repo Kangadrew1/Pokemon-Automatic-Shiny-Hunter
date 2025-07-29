@@ -1,0 +1,44 @@
+# 07-09-2025
+# SAFE code. not really anymore...
+# GOAL: Create “LCD Screens” for different Pokémon
+# → e.g. Input “Charmander” → Display name + stats or symbol on LCD.
+# Engineer: Andrew Nguyen
+
+import serial
+import time
+import requests
+
+# Substitute COM4 with your actual port (of Arduino)
+ser = serial.Serial('/dev/cu.usbmodem14401', 9600, timeout=2)
+time.sleep(2)  # Arduino resets when serial is opened
+
+def send_pokemon_name(name):
+    url = f'https://pokeapi.co/api/v2/pokemon/{name.lower()}'
+    response = requests.get(url)
+    
+    if response.status_code == 200:
+        data = response.json()
+        poke_name = data['name'].capitalize()
+        poke_type = data['types'][0]['type']['name'].capitalize()
+        message = f"{poke_name}|{poke_type}\n"
+        print("Sending:", message.strip())
+        ser.write(message.encode())
+    else:
+        print("Pokémon not found.")
+        ser.write(b"Not found|N/A\n")
+
+    # OG VERSION
+    # if response.status_code == 200:
+    #     data = response.json()
+    #     poke_name = data['name'].capitalize()
+    #     print(f"Sending to Arduino: {poke_name}")
+    #     if not ser.is_open:
+    #         ser.open()
+    #     ser.write((poke_name + '\n').encode())
+    # else:
+    #     print("Pokémon not found.")
+    #     ser.write(b'Not found\n')
+
+while True:
+    user_input = input("Enter a Pokémon name: ")
+    send_pokemon_name(user_input)
